@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 
-// List of station numbers to choose from
 const stationNumbers = [30, 31, 52, 50, 55, 34, 51, 72, 70, 10, 12];
 
-// Initial lists
 const initialDynamicList = [
   { name: "Sicknote", role: "driver" },
   { name: "Kink", role: "driver" },
@@ -34,7 +32,6 @@ export default function App() {
   const [selectedList, setSelectedList] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
 
-  // Handle sending someone
   const handleSend = (person, listType) => {
     setSelectedPerson(person);
     setSelectedList(listType);
@@ -53,10 +50,7 @@ export default function App() {
       action: "Sent",
     };
 
-    setHistory((prev) => {
-      const newHistory = [entry, ...prev];
-      return newHistory.slice(0, 100);
-    });
+    setHistory((prev) => [entry, ...prev].slice(0, 100));
 
     if (selectedList === "dynamic") {
       setDynamicList((prev) => [
@@ -80,7 +74,6 @@ export default function App() {
     setSelectedList(null);
   };
 
-  // Cancel last gone
   const cancelLastGone = () => {
     if (history.length === 0) return;
     const lastEntry = history[0];
@@ -91,51 +84,32 @@ export default function App() {
       action: "Cancelled",
     };
 
-    setHistory((prev) => {
-      const newHistory = [cancelEntry, ...prev];
-      return newHistory.slice(0, 100);
-    });
+    setHistory((prev) => [cancelEntry, ...prev].slice(0, 100));
 
-    if (lastEntry.list === "dynamic") {
-      setDynamicList((prev) => {
-        const withoutPerson = prev.filter((p) => p.name !== lastEntry.name);
-        const person = initialDynamicList.find((p) => p.name === lastEntry.name);
-        if (person) {
-          return [person, ...withoutPerson.filter((p) => p.name !== person.name)];
-        }
-        return prev;
-      });
-    } else if (lastEntry.list === "pre") {
-      setPreArrangedList((prev) => {
-        const withoutPerson = prev.filter((p) => p.name !== lastEntry.name);
-        const person = initialPreArrangedList.find((p) => p.name === lastEntry.name);
-        if (person) {
-          return [person, ...withoutPerson.filter((p) => p.name !== person.name)];
-        }
-        return prev;
-      });
-    } else if (lastEntry.list === "officer") {
-      setOfficersList((prev) => {
-        const withoutPerson = prev.filter((p) => p.name !== lastEntry.name);
-        const person = initialOfficersList.find((p) => p.name === lastEntry.name);
-        if (person) {
-          return [person, ...withoutPerson.filter((p) => p.name !== person.name)];
-        }
-        return prev;
-      });
-    }
+    const restorePerson = (list, setList, initialList) => {
+      const without = list.filter((p) => p.name !== lastEntry.name);
+      const original = initialList.find((p) => p.name === lastEntry.name);
+      if (original) setList([original, ...without]);
+    };
+
+    if (lastEntry.list === "dynamic") restorePerson(dynamicList, setDynamicList, initialDynamicList);
+    if (lastEntry.list === "pre") restorePerson(preArrangedList, setPreArrangedList, initialPreArrangedList);
+    if (lastEntry.list === "officer") restorePerson(officersList, setOfficersList, initialOfficersList);
   };
 
-  // Clear history
   const clearHistory = () => {
     if (window.confirm("Are you sure you want to clear the duty history?")) {
       setHistory([]);
     }
   };
 
-  // Render list
-  const renderList = (list, listType) => (
-    <div className="p-4 bg-white shadow rounded-lg mb-4">
+  const getLastGoneForList = (listType) => {
+    const last = history.find((h) => h.list === listType && h.action === "Sent");
+    return last ? `${last.name} to Station ${last.station}` : "No one yet";
+  };
+
+  const renderList = (list, listType, color) => (
+    <div className={`p-4 rounded-lg shadow mb-4 ${color}`}>
       <h2 className="text-xl font-bold mb-2">
         {listType === "dynamic"
           ? "Dynamic List"
@@ -143,11 +117,14 @@ export default function App() {
           ? "Pre Arranged List"
           : "Officers List"}
       </h2>
+      <p className="text-sm text-gray-700 mb-2">
+        <strong>Last Gone:</strong> {getLastGoneForList(listType)}
+      </p>
       <ul>
         {list.map((person, idx) => (
           <li
             key={idx}
-            className="flex justify-between items-center p-2 border-b last:border-0"
+            className="flex justify-between items-center p-2 border-b last:border-0 bg-white rounded"
           >
             <span>
               {person.name}{" "}
@@ -155,7 +132,7 @@ export default function App() {
             </span>
             <button
               onClick={() => handleSend(person, listType)}
-              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+              className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
             >
               Gone
             </button>
@@ -167,7 +144,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold text-center mb-6">
+      <h1 className="text-3xl font-bold text-center mb-6 text-red-700">
         Rayleigh 35 Outduties
       </h1>
 
@@ -214,9 +191,9 @@ export default function App() {
         </div>
       )}
 
-      {renderList(dynamicList, "dynamic")}
-      {renderList(preArrangedList, "pre")}
-      {renderList(officersList, "officer")}
+      {renderList(dynamicList, "dynamic", "bg-yellow-100")}
+      {renderList(preArrangedList, "pre", "bg-green-100")}
+      {renderList(officersList, "officer", "bg-blue-100")}
 
       <div className="mt-6 p-4 bg-white shadow rounded-lg">
         <div className="flex justify-between items-center mb-3">
@@ -244,9 +221,8 @@ export default function App() {
                 entry.action === "Cancelled" ? "bg-red-100" : "bg-green-100"
               }`}
             >
-              {entry.time} - {entry.name} ({entry.role}) -{" "}
-              {entry.action} {entry.station && `to Station ${entry.station}`}{" "}
-              [{entry.list}]
+              {entry.time} - {entry.name} ({entry.role}) - {entry.action}{" "}
+              {entry.station && `to Station ${entry.station}`} [{entry.list}]
             </li>
           ))}
         </ul>
