@@ -31,6 +31,7 @@ export default function App() {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [selectedList, setSelectedList] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleSend = (person, listType) => {
     setSelectedPerson(person);
@@ -52,11 +53,7 @@ export default function App() {
 
     setHistory((prev) => [entry, ...prev].slice(0, 100));
 
-    const updatedPerson = {
-      ...selectedPerson,
-      station: selectedStation,
-      time: timestamp,
-    };
+    const updatedPerson = { ...selectedPerson, station: selectedStation, time: timestamp };
 
     const updateList = (list, setList) => {
       const withoutPerson = list.filter((p) => p.name !== selectedPerson.name);
@@ -72,16 +69,11 @@ export default function App() {
     setSelectedList(null);
   };
 
-  const cancelLastGone = () => {
-    if (history.length === 0) return;
-    const lastEntry = history[0];
+  const cancelLastGoneForList = (listType) => {
+    const lastEntry = history.find((h) => h.list === listType && h.action === "Sent");
+    if (!lastEntry) return;
 
-    const cancelEntry = {
-      ...lastEntry,
-      time: new Date().toLocaleString(),
-      action: "Cancelled",
-    };
-
+    const cancelEntry = { ...lastEntry, time: new Date().toLocaleString(), action: "Cancelled" };
     setHistory((prev) => [cancelEntry, ...prev].slice(0, 100));
 
     const restore = (initialList, setList) => {
@@ -90,20 +82,9 @@ export default function App() {
       if (original) setList((prev) => [original, ...without(prev)]);
     };
 
-    if (lastEntry.list === "dynamic") restore(initialDynamicList, setDynamicList);
-    if (lastEntry.list === "pre") restore(initialPreArrangedList, setPreArrangedList);
-    if (lastEntry.list === "officer") restore(initialOfficersList, setOfficersList);
-  };
-
-  const clearHistory = () => {
-    if (window.confirm("Are you sure you want to clear the duty history?")) {
-      setHistory([]);
-    }
-  };
-
-  const getLastGoneForList = (listType) => {
-    const last = history.find((h) => h.list === listType && h.action === "Sent");
-    return last ? `${last.name} to Station ${last.station}` : "No one yet";
+    if (listType === "dynamic") restore(initialDynamicList, setDynamicList);
+    if (listType === "pre") restore(initialPreArrangedList, setPreArrangedList);
+    if (listType === "officer") restore(initialOfficersList, setOfficersList);
   };
 
   const renderList = (list, listType, color) => (
@@ -116,13 +97,17 @@ export default function App() {
           : "Officers List"}
       </h2>
       <p className="text-sm text-gray-700 mb-2">
-        <strong>Last Gone:</strong> {getLastGoneForList(listType)}
+        <strong>Last Gone:</strong>{" "}
+        {(() => {
+          const last = history.find((h) => h.list === listType && h.action === "Sent");
+          return last ? `${last.name} to Station ${last.station}` : "No one yet";
+        })()}
       </p>
       <ul>
         {list.map((person, idx) => (
           <li
             key={idx}
-            className="flex justify-between items-center p-2 border-b last:border-0 bg-white rounded"
+            className="flex justify-between items-center p-2 border-b last:border-0 bg-white rounded mb-1"
           >
             <div>
               <span className="font-semibold">{person.name}</span>{" "}
@@ -142,6 +127,12 @@ export default function App() {
           </li>
         ))}
       </ul>
+      <button
+        onClick={() => cancelLastGoneForList(listType)}
+        className="mt-2 bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600"
+      >
+        Cancel Last Gone
+      </button>
     </div>
   );
 
@@ -200,39 +191,35 @@ export default function App() {
       {renderList(preArrangedList, "pre", "bg-green-100")}
       {renderList(officersList, "officer", "bg-blue-100")}
 
-      {/* History */}
-      <div className="mt-6 p-4 bg-white shadow rounded-lg">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-xl font-bold">Duty History</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={cancelLastGone}
-              className="bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600"
-            >
-              Cancel Last Gone
-            </button>
-            <button
-              onClick={clearHistory}
-              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-            >
-              Clear History
-            </button>
-          </div>
-        </div>
-        <ul className="max-h-80 overflow-y-auto">
-          {history.map((entry, idx) => (
-            <li
-              key={idx}
-              className={`p-2 border-b last:border-0 ${
-                entry.action === "Cancelled" ? "bg-red-100" : "bg-green-100"
-              }`}
-            >
-              {entry.time} - {entry.name} ({entry.role}) - {entry.action}{" "}
-              {entry.station && `to Station ${entry.station}`} [{entry.list}]
-            </li>
-          ))}
-        </ul>
+      {/* Review Duties Button */}
+      <div className="mt-4 text-center">
+        <button
+          onClick={() => setShowHistory((prev) => !prev)}
+          className="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800"
+        >
+          {showHistory ? "Hide Duties" : "Review Duties"}
+        </button>
       </div>
+
+      {/* History */}
+      {showHistory && (
+        <div className="mt-4 p-4 bg-white shadow rounded-lg max-h-96 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-2">Duty History</h2>
+          <ul>
+            {history.map((entry, idx) => (
+              <li
+                key={idx}
+                className={`p-2 border-b last:border-0 ${
+                  entry.action === "Cancelled" ? "bg-red-100" : "bg-green-100"
+                }`}
+              >
+                {entry.time} - {entry.name} ({entry.role}) - {entry.action}{" "}
+                {entry.station && `to Station ${entry.station}`} [{entry.list}]
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
