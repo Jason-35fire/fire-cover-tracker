@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 
-// ---------------------------------
-// Initial staff lists
-// ---------------------------------
+const stationNumbers = [30, 31, 52, 50, 55, 34, 51, 72, 70, 10, 12];
+
 const initialDynamicList = [
   { name: "Sicknote", role: "firefighter" },
   { name: "Kink", role: "driver" },
@@ -25,9 +24,6 @@ const initialOfficersList = [
 ];
 
 function App() {
-  // ---------------------------
-  // State for lists
-  // ---------------------------
   const [dynamicList, setDynamicList] = useState(
     JSON.parse(localStorage.getItem("dynamicList")) || initialDynamicList
   );
@@ -38,22 +34,21 @@ function App() {
     JSON.parse(localStorage.getItem("officersList")) || initialOfficersList
   );
 
-  // Track last gone for cancel
   const [dynamicLastGone, setDynamicLastGone] = useState(null);
   const [preArrangedLastGone, setPreArrangedLastGone] = useState(null);
   const [officersLastGone, setOfficersLastGone] = useState(null);
 
-  // ---------------------------
-  // Duties log
-  // ---------------------------
   const [dutiesLog, setDutiesLog] = useState(
     JSON.parse(localStorage.getItem("dutiesLog")) || []
   );
   const [showLog, setShowLog] = useState(false);
 
-  // ---------------------------
-  // Save lists and log
-  // ---------------------------
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [selectedList, setSelectedList] = useState(null);
+  const [selectedSetter, setSelectedSetter] = useState(null);
+  const [selectedListName, setSelectedListName] = useState(null);
+  const [showStationModal, setShowStationModal] = useState(false);
+
   useEffect(() => {
     localStorage.setItem("dynamicList", JSON.stringify(dynamicList));
   }, [dynamicList]);
@@ -70,57 +65,55 @@ function App() {
     localStorage.setItem("dutiesLog", JSON.stringify(dutiesLog));
   }, [dutiesLog]);
 
-  // ---------------------------
-  // Add entry to duties log (max 100)
-  // ---------------------------
-  const logDuty = (action, person, listType) => {
+  const logDuty = (action, person, listType, station = null) => {
     const entry = {
       timestamp: new Date().toLocaleString(),
       name: person.name,
       role: person.role,
       action,
       list: listType,
+      station,
     };
 
     setDutiesLog((prev) => {
       const updated = [...prev, entry];
-      if (updated.length > 100) updated.shift(); // remove oldest
+      if (updated.length > 100) updated.shift();
       return updated;
     });
   };
 
-  // ---------------------------
-  // Mark gone
-  // ---------------------------
-  const markGone = (person, list, setList, setLastGone, listType) => {
-    const idx = list.indexOf(person);
-    setLastGone({ person, index: idx });
-    const newList = list.filter((p) => p !== person);
-    newList.push({ ...person, lastGone: new Date().toLocaleString() });
-    setList(newList);
-    logDuty("Gone", person, listType);
+  const confirmGone = (station) => {
+    if (!selectedPerson || !selectedList) return;
+
+    const idx = selectedList.indexOf(selectedPerson);
+    selectedSetter({ person: selectedPerson, index: idx });
+
+    const newList = selectedList.filter((p) => p !== selectedPerson);
+    newList.push({
+      ...selectedPerson,
+      lastGone: new Date().toLocaleString(),
+      station: station,
+    });
+
+    if (selectedListName === "Dynamic") setDynamicList(newList);
+    else if (selectedListName === "Pre-arranged") setPreArrangedList(newList);
+    else setOfficersList(newList);
+
+    logDuty("Gone", selectedPerson, selectedListName, station);
+    setSelectedPerson(null);
+    setShowStationModal(false);
   };
 
-  // ---------------------------
-  // Cancel last gone
-  // ---------------------------
   const cancelLastGone = (list, setList, lastGone, setLastGone, listType) => {
     if (!lastGone) return;
     const { person, index } = lastGone;
-
-    // Remove from back (where it was moved)
     const filteredList = list.filter((p) => p.name !== person.name);
-
-    // Restore original position
-    filteredList.splice(index, 0, { ...person, lastGone: null });
+    filteredList.splice(index, 0, { ...person, lastGone: null, station: null });
     setList(filteredList);
     setLastGone(null);
     logDuty("Cancel Last Gone", person, listType);
   };
 
-  // ---------------------------
-  // Render queue component
-  // ---------------------------
   const renderQueue = (queue, setQueue, lastGoneSetter, listType) =>
     queue.map((person, idx) => (
       <div
@@ -131,6 +124,11 @@ function App() {
       >
         <div>
           <strong>{person.name}</strong> ({person.role})
+          {person.station && (
+            <span className="ml-2 text-blue-600">
+              ➝ Station {person.station}
+            </span>
+          )}
           {person.lastGone && (
             <span className="text-gray-500 ml-2">
               Last: {person.lastGone}
@@ -139,19 +137,28 @@ function App() {
         </div>
         <button
           className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-          onClick={() => markGone(person, queue, setQueue, lastGoneSetter, listType)}
+          onClick={() => {
+            setSelectedPerson(person);
+            setSelectedList(queue);
+            setSelectedSetter(lastGoneSetter);
+            setSelectedListName(listType);
+            setShowStationModal(true);
+          }}
         >
           Gone
         </button>
       </div>
     ));
 
-  // ---------------------------
-  // Main UI
-  // ---------------------------
+  const clearHistory = () => {
+    if (window.confirm("Are you sure you want to clear the duty history?")) {
+      setDutiesLog([]);
+    }
+  };
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">🚒 Fire Cover Tracker</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">Rayleigh 35 Outduties</h1>
 
       {/* ------------------- Dynamic List ------------------- */}
       <section className="mb-6">
@@ -180,7 +187,12 @@ function App() {
       {/* ------------------- Pre-arranged List ------------------- */}
       <section className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Pre-arranged List</h2>
-        {renderQueue(preArrangedList, setPreArrangedList, setPreArrangedLastGone, "Pre-arranged")}
+        {renderQueue(
+          preArrangedList,
+          setPreArrangedList,
+          setPreArrangedLastGone,
+          "Pre-arranged"
+        )}
         <div className="mt-1 text-gray-700">
           Next: <strong>{preArrangedList[0]?.name || "None"}</strong>
         </div>
@@ -225,14 +237,22 @@ function App() {
         </button>
       </section>
 
-      {/* ------------------- Review Duties Button ------------------- */}
+      {/* ------------------- Review Duties ------------------- */}
       <div className="text-center mt-6">
         <button
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2"
           onClick={() => setShowLog(!showLog)}
         >
           {showLog ? "Hide Review Duties" : "Review Duties"}
         </button>
+        {showLog && (
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            onClick={clearHistory}
+          >
+            Clear History
+          </button>
+        )}
       </div>
 
       {/* ------------------- Duties Log ------------------- */}
@@ -249,11 +269,41 @@ function App() {
                 .map((entry, idx) => (
                   <li key={idx} className="mb-1">
                     <strong>{entry.name}</strong> ({entry.role}) — {entry.action} in{" "}
-                    {entry.list} — <span className="text-gray-500">{entry.timestamp}</span>
+                    {entry.list}{" "}
+                    {entry.station && (
+                      <span className="text-blue-600">→ Station {entry.station}</span>
+                    )}{" "}
+                    — <span className="text-gray-500">{entry.timestamp}</span>
                   </li>
                 ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* ------------------- Station Modal ------------------- */}
+      {showStationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg p-4 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-3">Select Station</h3>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {stationNumbers.map((num) => (
+                <button
+                  key={num}
+                  className="bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+                  onClick={() => confirmGone(num)}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            <button
+              className="bg-gray-400 text-white w-full py-2 rounded hover:bg-gray-500"
+              onClick={() => setShowStationModal(false)}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
