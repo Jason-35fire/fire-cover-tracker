@@ -180,46 +180,4 @@ export default function App() {
                 className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
               >
                 Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Lists */}
-      {renderList(dynamicList, "dynamic", "bg-yellow-100")}
-      {renderList(preArrangedList, "pre", "bg-green-100")}
-      {renderList(officersList, "officer", "bg-blue-100")}
-
-      {/* Review Duties Button */}
-      <div className="mt-4 text-center">
-        <button
-          onClick={() => setShowHistory((prev) => !prev)}
-          className="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800"
-        >
-          {showHistory ? "Hide Duties" : "Review Duties"}
-        </button>
-      </div>
-
-      {/* History */}
-      {showHistory && (
-        <div className="mt-4 p-4 bg-white shadow rounded-lg max-h-96 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-2">Duty History</h2>
-          <ul>
-            {history.map((entry, idx) => (
-              <li
-                key={idx}
-                className={`p-2 border-b last:border-0 ${
-                  entry.action === "Cancelled" ? "bg-red-100" : "bg-green-100"
-                }`}
-              >
-                {entry.time} - {entry.name} ({entry.role}) - {entry.action}{" "}
-                {entry.station && `to Station ${entry.station}`} [{entry.list}]
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
+              </but
