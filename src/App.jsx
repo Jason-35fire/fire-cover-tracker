@@ -52,22 +52,20 @@ export default function App() {
 
     setHistory((prev) => [entry, ...prev].slice(0, 100));
 
-    if (selectedList === "dynamic") {
-      setDynamicList((prev) => [
-        ...prev.filter((p) => p.name !== selectedPerson.name),
-        selectedPerson,
-      ]);
-    } else if (selectedList === "pre") {
-      setPreArrangedList((prev) => [
-        ...prev.filter((p) => p.name !== selectedPerson.name),
-        selectedPerson,
-      ]);
-    } else if (selectedList === "officer") {
-      setOfficersList((prev) => [
-        ...prev.filter((p) => p.name !== selectedPerson.name),
-        selectedPerson,
-      ]);
-    }
+    const updatedPerson = {
+      ...selectedPerson,
+      station: selectedStation,
+      time: timestamp,
+    };
+
+    const updateList = (list, setList) => {
+      const withoutPerson = list.filter((p) => p.name !== selectedPerson.name);
+      setList([...withoutPerson, updatedPerson]);
+    };
+
+    if (selectedList === "dynamic") updateList(dynamicList, setDynamicList);
+    if (selectedList === "pre") updateList(preArrangedList, setPreArrangedList);
+    if (selectedList === "officer") updateList(officersList, setOfficersList);
 
     setSelectedPerson(null);
     setSelectedStation(null);
@@ -86,15 +84,15 @@ export default function App() {
 
     setHistory((prev) => [cancelEntry, ...prev].slice(0, 100));
 
-    const restorePerson = (list, setList, initialList) => {
-      const without = list.filter((p) => p.name !== lastEntry.name);
+    const restore = (initialList, setList) => {
+      const without = (list) => list.filter((p) => p.name !== lastEntry.name);
       const original = initialList.find((p) => p.name === lastEntry.name);
-      if (original) setList([original, ...without]);
+      if (original) setList((prev) => [original, ...without(prev)]);
     };
 
-    if (lastEntry.list === "dynamic") restorePerson(dynamicList, setDynamicList, initialDynamicList);
-    if (lastEntry.list === "pre") restorePerson(preArrangedList, setPreArrangedList, initialPreArrangedList);
-    if (lastEntry.list === "officer") restorePerson(officersList, setOfficersList, initialOfficersList);
+    if (lastEntry.list === "dynamic") restore(initialDynamicList, setDynamicList);
+    if (lastEntry.list === "pre") restore(initialPreArrangedList, setPreArrangedList);
+    if (lastEntry.list === "officer") restore(initialOfficersList, setOfficersList);
   };
 
   const clearHistory = () => {
@@ -126,10 +124,15 @@ export default function App() {
             key={idx}
             className="flex justify-between items-center p-2 border-b last:border-0 bg-white rounded"
           >
-            <span>
-              {person.name}{" "}
+            <div>
+              <span className="font-semibold">{person.name}</span>{" "}
               <span className="text-gray-500 text-sm">({person.role})</span>
-            </span>
+              {person.station && person.time && (
+                <span className="ml-2 text-sm text-gray-700">
+                  {person.time} | Station {person.station}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => handleSend(person, listType)}
               className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
@@ -148,6 +151,7 @@ export default function App() {
         Rayleigh 35 Outduties
       </h1>
 
+      {/* Station Selection Modal */}
       {selectedPerson && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-80">
@@ -191,10 +195,12 @@ export default function App() {
         </div>
       )}
 
+      {/* Lists */}
       {renderList(dynamicList, "dynamic", "bg-yellow-100")}
       {renderList(preArrangedList, "pre", "bg-green-100")}
       {renderList(officersList, "officer", "bg-blue-100")}
 
+      {/* History */}
       <div className="mt-6 p-4 bg-white shadow rounded-lg">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-bold">Duty History</h2>
