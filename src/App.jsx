@@ -32,8 +32,14 @@ export default function App() {
   const [selectedList, setSelectedList] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("firefighter");
+  const [newList, setNewList] = useState("dynamic");
+  const [removeName, setRemoveName] = useState("");
 
-  // ✅ Load saved data from localStorage
+  // Load saved data
   useEffect(() => {
     const savedDynamic = localStorage.getItem("dynamicList");
     const savedPre = localStorage.getItem("preArrangedList");
@@ -46,7 +52,7 @@ export default function App() {
     if (savedHistory) setHistory(JSON.parse(savedHistory));
   }, []);
 
-  // ✅ Save lists & history to localStorage on change
+  // Save data
   useEffect(() => {
     localStorage.setItem("dynamicList", JSON.stringify(dynamicList));
   }, [dynamicList]);
@@ -108,13 +114,43 @@ export default function App() {
 
     const restore = (initialList, setList) => {
       const without = (list) => list.filter((p) => p.name !== lastEntry.name);
-      const original = initialList.find((p) => p.name === lastEntry.name);
+      const original =
+        (listType === "dynamic" && initialDynamicList.find((p) => p.name === lastEntry.name)) ||
+        (listType === "pre" && initialPreArrangedList.find((p) => p.name === lastEntry.name)) ||
+        (listType === "officer" && initialOfficersList.find((p) => p.name === lastEntry.name));
       if (original) setList((prev) => [original, ...without(prev)]);
     };
 
     if (listType === "dynamic") restore(initialDynamicList, setDynamicList);
     if (listType === "pre") restore(initialPreArrangedList, setPreArrangedList);
     if (listType === "officer") restore(initialOfficersList, setOfficersList);
+  };
+
+  const addPerson = () => {
+    if (!newName.trim()) return alert("Please enter a name.");
+
+    const person = { name: newName.trim(), role: newRole };
+
+    if (newList === "dynamic") setDynamicList((prev) => [...prev, person]);
+    if (newList === "pre") setPreArrangedList((prev) => [...prev, person]);
+    if (newList === "officer") setOfficersList((prev) => [...prev, person]);
+
+    setNewName("");
+    setShowAddModal(false);
+  };
+
+  const removePerson = () => {
+    if (!removeName.trim()) return alert("Enter a name to remove.");
+
+    const confirm = window.confirm(`Remove ${removeName}?`);
+    if (!confirm) return;
+
+    setDynamicList((prev) => prev.filter((p) => p.name !== removeName));
+    setPreArrangedList((prev) => prev.filter((p) => p.name !== removeName));
+    setOfficersList((prev) => prev.filter((p) => p.name !== removeName));
+
+    setRemoveName("");
+    setShowRemoveModal(false);
   };
 
   const renderList = (list, listType, color) => (
@@ -167,12 +203,12 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-6 pb-24">
       <h1 className="text-3xl font-bold text-center mb-6 text-red-700">
         Rayleigh 35 Outduties
       </h1>
 
-      {/* Station Selection Modal */}
+      {/* Station Selection */}
       {selectedPerson && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-80">
@@ -216,12 +252,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Lists */}
       {renderList(dynamicList, "dynamic", "bg-yellow-100")}
       {renderList(preArrangedList, "pre", "bg-green-100")}
       {renderList(officersList, "officer", "bg-blue-100")}
 
-      {/* Review Duties Button */}
+      {/* Review Duties */}
       <div className="mt-4 text-center">
         <button
           onClick={() => setShowHistory((prev) => !prev)}
@@ -231,14 +266,13 @@ export default function App() {
         </button>
       </div>
 
-      {/* History */}
       {showHistory && (
         <div className="mt-4 p-4 bg-white shadow rounded-lg max-h-96 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold">Duty History</h2>
             <button
               onClick={() => {
-                if (window.confirm("Are you sure you want to clear the duty history?")) {
+                if (window.confirm("Clear all duty history?")) {
                   setHistory([]);
                   localStorage.removeItem("dutyHistory");
                 }
@@ -261,6 +295,102 @@ export default function App() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Add / Remove Buttons */}
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center gap-4">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          Add Name
+        </button>
+        <button
+          onClick={() => setShowRemoveModal(true)}
+          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+        >
+          Remove Name
+        </button>
+      </div>
+
+      {/* Add Name Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+            <h3 className="text-lg font-bold mb-3">Add New Name</h3>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Enter name"
+              className="w-full p-2 mb-3 border rounded"
+            />
+            <label className="block mb-1 font-semibold">Role:</label>
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="w-full p-2 mb-3 border rounded"
+            >
+              <option value="firefighter">Firefighter</option>
+              <option value="driver">Driver</option>
+              <option value="officer">Officer</option>
+            </select>
+            <label className="block mb-1 font-semibold">Add to List:</label>
+            <select
+              value={newList}
+              onChange={(e) => setNewList(e.target.value)}
+              className="w-full p-2 mb-3 border rounded"
+            >
+              <option value="dynamic">Dynamic List</option>
+              <option value="pre">Pre Arranged List</option>
+              <option value="officer">Officers List</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addPerson}
+                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Name Modal */}
+      {showRemoveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+            <h3 className="text-lg font-bold mb-3">Remove Name</h3>
+            <input
+              type="text"
+              value={removeName}
+              onChange={(e) => setRemoveName(e.target.value)}
+              placeholder="Enter exact name"
+              className="w-full p-2 mb-4 border rounded"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowRemoveModal(false)}
+                className="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={removePerson}
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              >
+                Confirm Remove
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
