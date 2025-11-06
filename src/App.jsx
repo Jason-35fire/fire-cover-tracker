@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const stationNumbers = [30, 31, 52, 50, 55, 34, 51, 72, 70, 10, 12];
 
@@ -32,6 +32,36 @@ export default function App() {
   const [selectedList, setSelectedList] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  // ✅ Load saved data from localStorage
+  useEffect(() => {
+    const savedDynamic = localStorage.getItem("dynamicList");
+    const savedPre = localStorage.getItem("preArrangedList");
+    const savedOfficers = localStorage.getItem("officersList");
+    const savedHistory = localStorage.getItem("dutyHistory");
+
+    if (savedDynamic) setDynamicList(JSON.parse(savedDynamic));
+    if (savedPre) setPreArrangedList(JSON.parse(savedPre));
+    if (savedOfficers) setOfficersList(JSON.parse(savedOfficers));
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
+  }, []);
+
+  // ✅ Save lists & history to localStorage on change
+  useEffect(() => {
+    localStorage.setItem("dynamicList", JSON.stringify(dynamicList));
+  }, [dynamicList]);
+
+  useEffect(() => {
+    localStorage.setItem("preArrangedList", JSON.stringify(preArrangedList));
+  }, [preArrangedList]);
+
+  useEffect(() => {
+    localStorage.setItem("officersList", JSON.stringify(officersList));
+  }, [officersList]);
+
+  useEffect(() => {
+    localStorage.setItem("dutyHistory", JSON.stringify(history));
+  }, [history]);
 
   const handleSend = (person, listType) => {
     setSelectedPerson(person);
@@ -210,6 +240,7 @@ export default function App() {
               onClick={() => {
                 if (window.confirm("Are you sure you want to clear the duty history?")) {
                   setHistory([]);
+                  localStorage.removeItem("dutyHistory");
                 }
               }}
               className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
